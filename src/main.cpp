@@ -6,6 +6,8 @@
 #include "RF.hpp"
 #include "buzzer.hpp"
 #include "rotary_switch.hpp"
+#include "wifi_manager.hpp"
+#include "web_server.hpp"
 
 // ---------------- Globals ----------------
 Preferences prefs;
@@ -109,6 +111,11 @@ void setup() {
   // Initialize preferences
   prefs.begin("tltb_mini", false);
   
+  // Initialize WiFi and Web Server
+  WiFiManager::begin(&prefs);
+  WebServer::begin(&prefs);
+  WebServer::start();
+  
   // Initialize modules
   relaysBegin();
   Serial.println("Relays initialized");
@@ -132,6 +139,8 @@ void setup() {
   
   Serial.println("=== System Ready ===");
   Serial.println("Type HELP for available commands");
+  Serial.printf("WiFi AP: %s (password: TLTB1234)\n", WiFiManager::getAPSSID().c_str());
+  Serial.printf("Web interface: http://%s\n", WiFiManager::getIPAddress().c_str());
   
   // Show initial status
   RotaryMode initialMode = RotarySwitch::readPosition();
@@ -140,6 +149,10 @@ void setup() {
 
 // ---------------- Main Loop ----------------
 void loop() {
+  // Handle WiFi and Web Server
+  WiFiManager::service();
+  WebServer::service();
+  
   // Handle learning mode timeout
   if (g_learningMode) {
     if (millis() - g_learningStart > 10000) {

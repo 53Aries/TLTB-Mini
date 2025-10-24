@@ -7,7 +7,9 @@ A simplified version of the TLTB (Trailer Light Test Box) designed for ESP32-S3 
 - **RF Remote Control**: Compatible with SYN480R OOK/ASK receivers using RCSwitch library
 - **6 Relay Channels**: LEFT, RIGHT, BRAKE, TAIL, MARKER, AUX + 12V ENABLE
 - **8-Position Rotary Switch**: Manual control modes plus RF enable
-- **Learning Mode**: Learn up to 6 RF remote buttons via serial commands
+- **WiFi Connectivity**: Connect to existing WiFi or create hotspot for configuration
+- **Web Interface**: Browser-based configuration and RF learning (no display needed!)
+- **Learning Mode**: Learn up to 6 RF remote buttons via web interface or serial
 - **Audio Feedback**: Piezo buzzer for user feedback
 - **Status LED**: Visual indication of current mode
 
@@ -90,22 +92,41 @@ pio run --target upload --environment esp32-s3-devkitc-1
 pio device monitor
 ```
 
-### Serial Commands
+## Quick Start Guide
 
-Connect to the ESP32-C3 via serial terminal (115200 baud) and use these commands:
+### First Time Setup
+1. **Power on** the TLTB Mini
+2. **Connect to WiFi hotspot** `TLTB-Mini-XXXXXX` (password: `TLTB1234`)
+3. **Open web browser** and go to `http://192.168.4.1`
+4. **Configure WiFi** by entering your network credentials
+5. **Learn RF codes** using the web interface
 
-- `HELP` - Show available commands
-- `STATUS` - Display current system status
-- `LEARN <0-5>` - Learn RF code for relay channel (0=LEFT, 1=RIGHT, 2=BRAKE, 3=TAIL, 4=MARKER, 5=AUX)
-- `CLEAR` - Clear all learned RF codes
+### Web Interface Features
+- **System Status**: View current switch position, relay states, WiFi status
+- **WiFi Configuration**: Connect to your home/shop WiFi network  
+- **RF Learning**: Learn remote control buttons for each relay channel
+- **Real-time Updates**: Live status updates every 5 seconds
+
+### WiFi Modes
+- **Access Point Mode**: Creates `TLTB-Mini-XXXXXX` hotspot when no WiFi configured
+- **Station Mode**: Connects to your WiFi network when credentials are saved
+- **Automatic Fallback**: Returns to AP mode if WiFi connection fails
 
 ### RF Learning Process
 
-1. Set rotary switch to position 2 (RF ENABLE)
-2. Send serial command: `LEARN 0` (for LEFT relay)
-3. Press and hold the desired remote button
-4. Wait for confirmation beep sequence
-5. Repeat for other channels as needed
+#### Using Web Interface (Recommended)
+1. Set rotary switch to position 2 (RF ENABLE)  
+2. Open web browser to device IP address
+3. Click "Learn" button for desired relay channel
+4. Press and hold the remote control button
+5. Wait for success confirmation
+
+#### Using Serial Commands
+Connect via serial terminal (115200 baud):
+- `HELP` - Show available commands
+- `STATUS` - Display current system status  
+- `LEARN <0-5>` - Learn RF code for relay channel
+- `CLEAR` - Clear all learned RF codes
 
 ## Usage
 
@@ -128,10 +149,16 @@ Connect to the ESP32-C3 via serial terminal (115200 baud) and use these commands
 
 ## Troubleshooting
 
+### WiFi Issues
+- **Can't find TLTB hotspot**: Power cycle the device, look for `TLTB-Mini-XXXXXX`
+- **Hotspot password not working**: Use `TLTB1234` (case sensitive)
+- **Can't connect to home WiFi**: Check SSID/password, ensure 2.4GHz network
+- **Device won't connect after setup**: Clear credentials via web interface and reconfigure
+
 ### No RF Response
 - Check SYN480R module connections
 - Verify 3.3V power supply to RF module
-- Ensure data pin connection to GPIO2
+- Ensure data pin connection to GPIO21
 - Check RF module antenna connection
 
 ### Relays Not Switching
