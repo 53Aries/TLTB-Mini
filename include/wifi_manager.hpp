@@ -28,6 +28,9 @@ namespace WiFiManager {
   // Get AP SSID when in AP mode
   String getAPSSID();
   
+  // Check if WiFi just connected (for notifications)
+  bool checkWiFiJustConnected();
+  
   // Start Access Point mode for configuration
   void startAP();
   

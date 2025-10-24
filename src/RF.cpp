@@ -45,6 +45,20 @@ namespace {
                    {0,0,0,0,0,0}, false};
   uint32_t g_block_until_ms = 0;
 
+  // Learning state for async operation
+  struct {
+    bool active = false;
+    int channel = -1;
+    uint32_t startTime = 0;
+    uint32_t deadline = 0;
+    uint32_t lastSig = 0;
+    uint32_t lastSum = 0;
+    uint16_t lastLen = 0;
+    uint32_t lastAt = 0;
+    bool success = false;
+    bool timeout = false;
+  } g_learning;
+
   // Forward declaration for burst finalizer
   void handleTrigger(uint8_t rindex);
 
@@ -186,6 +200,71 @@ bool begin() {
 void service() {
   uint32_t nowMs = millis();
   
+  // Handle async learning mode
+  if (g_learning.active) {
+    if (nowMs >= g_learning.deadline) {
+      // Learning timeout
+      g_learning.timeout = true;
+      g_learning.active = false;
+      Serial.printf("[RF] Learning timeout for relay %d\n", g_learning.channel);
+      return;
+    }
+    
+    // Try to capture a signal for learning
+    uint32_t sig, sum; 
+    uint16_t len;
+    if (computeFromRcSwitch(sig, sum, len)) {
+      // Check for consistency with previous signal
+      if (g_learning.lastSig != 0) {
+        if (sig == g_learning.lastSig && (nowMs - g_learning.lastAt) <= 2000) {
+          // Successful learning
+          g_learn[g_learning.channel].sig = sig;
+          g_learn[g_learning.channel].sum = sum;
+          g_learn[g_learning.channel].len = len;
+          g_learn[g_learning.channel].relay = (uint8_t)g_learning.channel;
+          saveSlot(g_learning.channel);
+          
+          Serial.printf("[RF] Learned: sig=0x%08X sum=%u len=%u for relay %d\n", 
+                        sig, sum, len, g_learning.channel);
+          Buzzer::learnSuccess();
+          
+          g_learning.success = true;
+          g_learning.active = false;
+          return;
+        }
+        // or accept if coarse sum is close on repeat
+        uint32_t diff = (g_learning.lastSum > sum) ? (g_learning.lastSum - sum) : (sum - g_learning.lastSum);
+        if (diff <= 6 && (nowMs - g_learning.lastAt) <= 2000 && 
+            (len + 2 >= g_learning.lastLen && len <= g_learning.lastLen + 2)) {
+          // Successful coarse learning
+          g_learn[g_learning.channel].sig = sig;
+          g_learn[g_learning.channel].sum = sum;
+          g_learn[g_learning.channel].len = len;
+          g_learn[g_learning.channel].relay = (uint8_t)g_learning.channel;
+          saveSlot(g_learning.channel);
+          
+          Serial.printf("[RF] Learned (coarse): sig=0x%08X sum=%u len=%u for relay %d\n", 
+                        sig, sum, len, g_learning.channel);
+          Buzzer::learnSuccess();
+          
+          g_learning.success = true;
+          g_learning.active = false;
+          return;
+        }
+      }
+      
+      // Store this signal for comparison
+      g_learning.lastSig = sig;
+      g_learning.lastSum = sum;
+      g_learning.lastLen = len;
+      g_learning.lastAt = nowMs;
+    }
+    
+    // Don't process normal RF commands while learning
+    return;
+  }
+  
+  // Normal RF processing (when not learning)
   // If an active burst has gone quiet, finalize it
   if (g_agg.active && ((nowMs - g_agg.lastMs) > BURST_GAP_MS || 
                        (nowMs - g_agg.startMs) > MAX_BURST_MS))
@@ -285,11 +364,11 @@ bool learn(int relayIndex) {
   if (relayIndex < 0) relayIndex = 0;
   if (relayIndex > 5) relayIndex = 5;
   
-  uint32_t deadline = millis() + 8000;
+  uint32_t deadline = millis() + 30000; // 30 second timeout
   uint32_t lastSig = 0, lastSum = 0, lastAt = 0;
   uint16_t lastLen = 0;
 
-  Serial.printf("[RF] Learning mode for relay %d. Press remote button...\n", relayIndex);
+  Serial.printf("[RF] Learning mode for relay %d. Press remote button (30s timeout)...\n", relayIndex);
 
   while (millis() < deadline) {
     uint32_t sig, sum; 
@@ -336,6 +415,54 @@ bool learn(int relayIndex) {
   
   Serial.printf("[RF] Learning timeout for relay %d\n", relayIndex);
   return false;
+}
+
+bool startLearning(int relayIndex) {
+  if (relayIndex < 0 || relayIndex > 5) return false;
+  if (g_learning.active) return false; // Already learning
+  
+  g_learning.active = true;
+  g_learning.channel = relayIndex;
+  g_learning.startTime = millis();
+  g_learning.deadline = g_learning.startTime + 30000; // 30 second timeout
+  g_learning.lastSig = 0;
+  g_learning.lastSum = 0;
+  g_learning.lastLen = 0;
+  g_learning.lastAt = 0;
+  g_learning.success = false;
+  g_learning.timeout = false;
+  
+  Serial.printf("[RF] Started async learning for relay %d (30s timeout)\n", relayIndex);
+  return true;
+}
+
+bool isLearning() {
+  return g_learning.active;
+}
+
+LearningStatus getLearningStatus() {
+  LearningStatus status;
+  status.active = g_learning.active;
+  status.channel = g_learning.channel;
+  status.startTime = g_learning.startTime;
+  status.success = g_learning.success;
+  status.timeout = g_learning.timeout;
+  
+  if (g_learning.active) {
+    uint32_t elapsed = millis() - g_learning.startTime;
+    status.timeRemaining = (elapsed < 30000) ? (30000 - elapsed) : 0;
+  } else {
+    status.timeRemaining = 0;
+  }
+  
+  return status;
+}
+
+void stopLearning() {
+  if (g_learning.active) {
+    Serial.printf("[RF] Stopped learning for relay %d\n", g_learning.channel);
+    g_learning.active = false;
+  }
 }
 
 bool clearAll() {

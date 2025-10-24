@@ -10,9 +10,6 @@ namespace {
   AsyncWebServer* g_server = nullptr;
   Preferences* g_prefs = nullptr;
   bool g_serverRunning = false;
-  bool g_learningInProgress = false;
-  int g_learningChannel = -1;
-  uint32_t g_learningStartTime = 0;
   
   // HTML pages as strings
   const char* HTML_INDEX = R"html(
@@ -49,6 +46,15 @@ namespace {
     <div class="container">
         <h1>🚛 TLTB Mini Configuration</h1>
         
+        <div class="section">
+            <h3>📱 Android Users</h3>
+            <p style="background: #fff3cd; padding: 10px; border-radius: 5px; border-left: 4px solid #ffc107;">
+                <strong>Connection Tip:</strong> If Android shows "No internet" and tries to disconnect, 
+                tap "Use network as is" or "Stay connected" in the WiFi notification. 
+                This is normal for local device configuration networks.
+            </p>
+        </div>
+        
         <div class="section status">
             <h2>📊 System Status</h2>
             <div id="status">Loading...</div>
@@ -57,6 +63,11 @@ namespace {
                 <div><strong>IP:</strong> <span id="ip-address">-</span></div>
                 <div><strong>Switch:</strong> <span id="switch-position">-</span></div>
                 <div><strong>RF Active:</strong> <span id="rf-active">-</span></div>
+            </div>
+            <div id="connection-info" style="display: none; background: #e8f5e8; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                <h4>🔗 Direct IP Access:</h4>
+                <div><strong>IP Address:</strong> <a id="ip-link" href="#" target="_blank">-</a></div>
+                <div><strong>Bookmark this page</strong> for easy future access!</div>
             </div>
             <button onclick="updateStatus()">🔄 Refresh</button>
         </div>
@@ -126,6 +137,19 @@ namespace {
                     document.getElementById('switch-position').textContent = data.switch_position;
                     document.getElementById('rf-active').textContent = data.rf_active_relay;
                     
+                    // Show connection info if connected to WiFi
+                    if (data.wifi_state === 'Connected' && data.ip_address !== '0.0.0.0') {
+                        const connectionInfo = document.getElementById('connection-info');
+                        const ipLink = document.getElementById('ip-link');
+                        
+                        ipLink.href = 'http://' + data.ip_address;
+                        ipLink.textContent = 'http://' + data.ip_address;
+                        
+                        connectionInfo.style.display = 'block';
+                    } else {
+                        document.getElementById('connection-info').style.display = 'none';
+                    }
+                    
                     // Update relay status
                     updateRelayStatus(data.relays);
                 })
@@ -186,7 +210,7 @@ namespace {
 
         function learnRF(channel) {
             const button = document.getElementById('learn-' + channel);
-            button.textContent = 'Learning...';
+            button.textContent = 'Starting...';
             button.className = 'learn-active';
             button.disabled = true;
             
@@ -197,11 +221,56 @@ namespace {
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message);
-                button.textContent = 'Learn ' + ['LEFT', 'RIGHT', 'BRAKE', 'TAIL', 'MARKER', 'AUX'][channel];
-                button.className = 'learn-button';
-                button.disabled = false;
+                if (data.success) {
+                    // Start polling for learning status
+                    startLearningStatusPoll(channel);
+                } else {
+                    alert(data.message);
+                    resetLearnButton(channel);
+                }
             });
+        }
+
+        function startLearningStatusPoll(channel) {
+            const button = document.getElementById('learn-' + channel);
+            const channelNames = ['LEFT', 'RIGHT', 'BRAKE', 'TAIL', 'MARKER', 'AUX'];
+            
+            const pollInterval = setInterval(() => {
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        const learning = data.learning;
+                        
+                        if (!learning.active) {
+                            clearInterval(pollInterval);
+                            if (learning.success) {
+                                alert('Successfully learned RF code for ' + channelNames[channel]);
+                            } else if (learning.timeout) {
+                                alert('Learning timeout - no signal received within 30 seconds');
+                            } else {
+                                alert('Learning failed');
+                            }
+                            resetLearnButton(channel);
+                        } else {
+                            // Update button with countdown
+                            const timeLeft = Math.ceil(learning.time_remaining);
+                            button.textContent = `Learning... ${timeLeft}s`;
+                        }
+                    })
+                    .catch(error => {
+                        clearInterval(pollInterval);
+                        alert('Error: ' + error);
+                        resetLearnButton(channel);
+                    });
+            }, 1000); // Poll every second
+        }
+
+        function resetLearnButton(channel) {
+            const button = document.getElementById('learn-' + channel);
+            const channelNames = ['LEFT', 'RIGHT', 'BRAKE', 'TAIL', 'MARKER', 'AUX'];
+            button.textContent = 'Learn ' + channelNames[channel];
+            button.className = 'learn-button';
+            button.disabled = false;
         }
 
         function clearAllRF() {
@@ -223,7 +292,9 @@ namespace {
 )html";
 
   void handleNotFound(AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
+    String path = request->url();
+    Serial.printf("[WebServer] 404 Request: %s\n", path.c_str());
+    request->send(404, "text/plain", "Not found - try http://192.168.4.1");
   }
 
   void handleIndex(AsyncWebServerRequest *request) {
@@ -246,6 +317,16 @@ namespace {
     json["ip_address"] = WiFiManager::getIPAddress();
     json["switch_position"] = RotarySwitch::getModeName(RotarySwitch::readPosition());
     json["rf_active_relay"] = RF::getActiveRelay();
+    
+    // Add learning status
+    RF::LearningStatus learningStatus = RF::getLearningStatus();
+    JSONVar learning;
+    learning["active"] = learningStatus.active;
+    learning["channel"] = learningStatus.channel;
+    learning["time_remaining"] = learningStatus.timeRemaining / 1000; // Convert to seconds
+    learning["success"] = learningStatus.success;
+    learning["timeout"] = learningStatus.timeout;
+    json["learning"] = learning;
     
     JSONVar relays;
     for (int i = 0; i < R_COUNT; i++) {
@@ -294,20 +375,22 @@ namespace {
       int channel = (int)json["channel"];
       
       if (channel >= 0 && channel <= 5) {
-        g_learningInProgress = true;
-        g_learningChannel = channel;
-        g_learningStartTime = millis();
+        if (RF::isLearning()) {
+          JSONVar response;
+          response["success"] = false;
+          response["message"] = "Learning already in progress";
+          request->send(400, "application/json", JSON.stringify(response));
+          return;
+        }
         
-        // Start learning in a separate task or handle in service()
-        bool success = RF::learn(channel);
+        bool success = RF::startLearning(channel);
         
         JSONVar response;
         response["success"] = success;
         response["message"] = success ? 
-          "Successfully learned RF code for channel " + String(channel) :
-          "Failed to learn RF code for channel " + String(channel);
+          "Learning started for channel " + String(channel) + ". Press remote button within 30 seconds." :
+          "Failed to start learning for channel " + String(channel);
         
-        g_learningInProgress = false;
         request->send(200, "application/json", JSON.stringify(response));
       } else {
         JSONVar response;
@@ -345,6 +428,17 @@ void begin(Preferences* prefs) {
   // Simple connectivity test
   g_server->on("/ping", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", "pong");
+  });
+  
+  // Device discovery endpoint
+  g_server->on("/discover", HTTP_GET, [](AsyncWebServerRequest *request){
+    JSONVar response;
+    response["device"] = "TLTB-Mini";
+    response["ip"] = WiFi.localIP().toString();
+    response["hostname"] = "tltb-mini.local";
+    response["mac"] = WiFi.macAddress();
+    response["ap_ssid"] = WiFiManager::getAPSSID();
+    request->send(200, "application/json", JSON.stringify(response));
   });
   
   // Diagnostic page

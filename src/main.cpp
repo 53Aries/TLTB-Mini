@@ -13,9 +13,14 @@
 Preferences prefs;
 static uint32_t g_lastStatusPrint = 0;
 static RotaryMode g_lastMode = MODE_ALL_OFF;
-static bool g_learningMode = false;
-static int g_learningChannel = 0;
-static uint32_t g_learningStart = 0;
+
+// WiFi connection signal function
+void signalWiFiConnected() {
+  for (int i = 0; i < 3; i++) {
+    Buzzer::beep();
+    delay(100);
+  }
+}
 
 // ---------------- Serial Commands ----------------
 void handleSerialCommands() {
@@ -38,9 +43,11 @@ void handleSerialCommands() {
     
     Serial.printf("Starting RF learning for channel %d (relay %s)...\n", 
                   channel, relayName((RelayIndex)channel));
-    g_learningMode = true;
-    g_learningChannel = channel;
-    g_learningStart = millis();
+    if (RF::startLearning(channel)) {
+      Serial.println("Learning started. Press remote button within 30 seconds.");
+    } else {
+      Serial.println("Failed to start learning - another learning session may be active.");
+    }
     
   } else if (cmd == "CLEAR") {
     Serial.println("Clearing all learned RF codes...");
@@ -50,6 +57,16 @@ void handleSerialCommands() {
     RotaryMode currentMode = RotarySwitch::readPosition();
     Serial.printf("Switch Position: %s\n", RotarySwitch::getModeName(currentMode));
     Serial.printf("RF Active Relay: %d\n", RF::getActiveRelay());
+    
+    // Show learning status
+    RF::LearningStatus learningStatus = RF::getLearningStatus();
+    if (learningStatus.active) {
+      Serial.printf("Learning: Active for channel %d (%d seconds remaining)\n", 
+                    learningStatus.channel, learningStatus.timeRemaining / 1000);
+    } else {
+      Serial.println("Learning: Inactive");
+    }
+    
     Serial.println("Relay States:");
     for (int i = 0; i < R_COUNT; i++) {
       Serial.printf("  %s: %s\n", relayName((RelayIndex)i), 
@@ -60,7 +77,7 @@ void handleSerialCommands() {
     Serial.println("Available commands:");
     Serial.println("  LEARN <0-5>  - Learn RF code for relay channel");
     Serial.println("  CLEAR        - Clear all learned RF codes");
-    Serial.println("  STATUS       - Show current system status");
+    Serial.println("  STATUS       - Show system status");
     Serial.println("  HELP         - Show this help");
     
   } else if (cmd.length() > 0) {
@@ -76,7 +93,8 @@ void updateStatusLED() {
   
   RotaryMode currentMode = RotarySwitch::readPosition();
   
-  if (g_learningMode) {
+  RF::LearningStatus learningStatus = RF::getLearningStatus();
+  if (learningStatus.active) {
     // Fast blink during learning
     if (millis() - lastBlink > 100) {
       ledState = !ledState;
@@ -144,8 +162,15 @@ void setup() {
   delay(200);
   Buzzer::beep();
   
-  Serial.println("=== System Ready ===");
-  Serial.println("Type HELP for available commands");
+  Serial.println("=== TLTB Mini Ready ===");
+  Serial.println("Control methods available:");
+  Serial.println("1. WiFi Web Interface - Connect to TLTB-Mini-XXXXXX");
+  Serial.println("2. Manual Control - Use rotary switch");
+  Serial.println("");
+  Serial.println("For Android devices:");
+  Serial.println("- Connect to WiFi normally");  
+  Serial.println("- Manually navigate to http://192.168.4.1");
+  Serial.println("- Ignore 'no internet' warnings");
   
   // Wait a moment for WiFi to stabilize
   delay(2000);
@@ -177,18 +202,9 @@ void loop() {
   WiFiManager::service();
   WebServer::service();
   
-  // Handle learning mode timeout
-  if (g_learningMode) {
-    if (millis() - g_learningStart > 10000) {
-      Serial.println("Learning mode timeout");
-      g_learningMode = false;
-    } else {
-      // Try to learn the code
-      if (RF::learn(g_learningChannel)) {
-        Serial.printf("Successfully learned RF code for channel %d!\n", g_learningChannel);
-        g_learningMode = false;
-      }
-    }
+  // Check for WiFi connection notification
+  if (WiFiManager::checkWiFiJustConnected()) {
+    signalWiFiConnected();
   }
   
   // Handle serial commands
@@ -208,20 +224,28 @@ void loop() {
   }
   
   // Let RF run, but we will enforce rotary below unless in MODE_RF_ENABLE
-  if (!g_learningMode) {
-    RF::service();
-  }
+  RF::service();
   
   // Rotary has final say unless P2 (RF enabled)
   RotarySwitch::enforceMode(currentMode);
   
-  // Periodic status print (every 10 seconds)
-  if (millis() - g_lastStatusPrint > 10000) {
+  // Periodic status print (every 30 seconds)
+  if (millis() - g_lastStatusPrint > 30000) {
     g_lastStatusPrint = millis();
     Serial.printf("[Status] Mode: %s, RF Active: %d, Enable: %s\n", 
                   RotarySwitch::getModeName(currentMode),
                   RF::getActiveRelay(),
                   relayIsOn(R_ENABLE) ? "ON" : "OFF");
+                  
+    // Print WiFi connection info
+    WiFiManager::WiFiState wifiState = WiFiManager::getState();
+    if (wifiState == WiFiManager::WIFI_STA_CONNECTED) {
+      Serial.printf("[WiFi] Connected - IP: %s\n", WiFi.localIP().toString().c_str());
+      Serial.println("[WiFi] Access via: http://tltb-mini.local OR http://" + WiFi.localIP().toString());
+    } else if (wifiState == WiFiManager::WIFI_AP_MODE) {
+      Serial.printf("[WiFi] AP Mode - Connect to: %s\n", WiFiManager::getAPSSID().c_str());
+      Serial.println("[WiFi] Then go to: http://192.168.4.1");
+    }
   }
   
   delay(1); // keep responsive

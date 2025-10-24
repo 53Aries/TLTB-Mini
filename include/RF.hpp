@@ -14,6 +14,26 @@ namespace RF {
   // Learn a remote control signal for a specific relay index (0-5)
   bool learn(int relayIndex);
   
+  // Start learning mode asynchronously (non-blocking)
+  bool startLearning(int relayIndex);
+  
+  // Check if learning is in progress
+  bool isLearning();
+  
+  // Get learning progress/status
+  struct LearningStatus {
+    bool active;
+    int channel;
+    uint32_t startTime;
+    uint32_t timeRemaining;
+    bool success;
+    bool timeout;
+  };
+  LearningStatus getLearningStatus();
+  
+  // Stop learning mode
+  void stopLearning();
+  
   // Clear all learned codes
   bool clearAll();
   

@@ -4,14 +4,13 @@ A simplified version of the TLTB (Trailer Light Test Box) designed for ESP32-S3 
 
 ## Features
 
-- **RF Remote Control**: Compatible with SYN480R OOK/ASK receivers using RCSwitch library
-- **6 Relay Channels**: LEFT, RIGHT, BRAKE, TAIL, MARKER, AUX + 12V ENABLE
-- **8-Position Rotary Switch**: Manual control modes plus RF enable
-- **WiFi Connectivity**: Connect to existing WiFi or create hotspot for configuration
-- **Web Interface**: Browser-based configuration and RF learning (no display needed!)
-- **Learning Mode**: Learn up to 6 RF remote buttons via web interface or serial
-- **Audio Feedback**: Piezo buzzer for user feedback
-- **Status LED**: Visual indication of current mode
+- RF Remote Control (RCSwitch library, SYN480R OOK/ASK receiver)
+- 6 Relay Channels: LEFT, RIGHT, BRAKE, TAIL, MARKER, AUX + 12V ENABLE
+- 8-Position Rotary Switch: Manual control modes plus RF enable
+- Built-in WiFi Access Point (AP): simple, reliable hotspot for configuration
+- Web Interface at http://192.168.4.1: RF learning and relay status
+- Learning Mode: Learn up to 6 RF remote buttons with 30-second timeout
+- Audio Feedback (buzzer) and Status LED
 
 ## Hardware Requirements
 
@@ -79,27 +78,23 @@ A simplified version of the TLTB (Trailer Light Test Box) designed for ESP32-S3 
 
 ### Building and Uploading
 ```bash
-# Navigate to project directory
-cd TLTB-mini
-
-# Build the project
+# Build
 pio run --environment esp32-s3-devkitc-1
 
-# Upload to ESP32-S3
+# Upload
 pio run --target upload --environment esp32-s3-devkitc-1
 
-# Monitor serial output
+# Monitor serial (optional)
 pio device monitor
 ```
 
 ## Quick Start Guide
 
-### First Time Setup
-1. **Power on** the TLTB Mini
-2. **Connect to WiFi hotspot** `TLTB-Mini-XXXXXX` (password: `TLTB1234`)
-3. **Open web browser** and go to `http://192.168.4.1`
-4. **Configure WiFi** by entering your network credentials
-5. **Learn RF codes** using the web interface
+### First Time Setup (AP-Only, Simple)
+1. Power on the TLTB Mini
+2. Connect to WiFi hotspot: `TLTB-Mini-XXXXXX` (password: `TLTB1234`)
+3. Open a browser and go to: `http://192.168.4.1`
+4. Use the web page to learn RF codes and view status
 
 ### Web Interface Features
 - **System Status**: View current switch position, relay states, WiFi status
@@ -107,10 +102,9 @@ pio device monitor
 - **RF Learning**: Learn remote control buttons for each relay channel
 - **Real-time Updates**: Live status updates every 5 seconds
 
-### WiFi Modes
-- **Access Point Mode**: Creates `TLTB-Mini-XXXXXX` hotspot when no WiFi configured
-- **Station Mode**: Connects to your WiFi network when credentials are saved
-- **Automatic Fallback**: Returns to AP mode if WiFi connection fails
+### WiFi Mode
+- Access Point (AP) only by default for maximum reliability.
+- Advanced: a WiFi connect option exists in the UI, but AP mode is the recommended/default mode.
 
 ### RF Learning Process
 
@@ -127,6 +121,10 @@ Connect via serial terminal (115200 baud):
 - `STATUS` - Display current system status  
 - `LEARN <0-5>` - Learn RF code for relay channel
 - `CLEAR` - Clear all learned RF codes
+
+### Mobile/Windows Notes
+- Some devices may warn there’s “No internet” on the AP—this is expected; continue anyway.
+- On Windows, simply connect to the AP and browse to `http://192.168.4.1` (no extra settings required).
 
 ## Usage
 
@@ -175,11 +173,11 @@ Connect via serial terminal (115200 baud):
 
 ## Development Notes
 
-This project is based on the original TLTB design but simplified for ESP32-C3:
+This project is based on the original TLTB design, simplified for ESP32-S3:
 - Removed display functionality
 - Removed INA226 current monitoring
-- Simplified to basic RF + relay control
-- Added serial interface for configuration
+- Focused on RF + relay control with a simple web UI
+- AP-only by default for reliable configuration
 
 The RF learning algorithm supports various remote control protocols through the RCSwitch library, with burst detection and noise filtering for reliable operation.
 

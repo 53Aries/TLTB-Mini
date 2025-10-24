@@ -8,6 +8,7 @@ namespace {
   String g_deviceName = "TLTB-Mini";
   String g_apSSID = "";
   bool g_apStarted = false;
+  bool g_wifiJustConnected = false;
   
   // Keys for preferences
   const char* KEY_WIFI_SSID = "wifi_ssid";
@@ -27,30 +28,23 @@ void begin(Preferences* prefs) {
   WiFi.mode(WIFI_OFF);
   delay(100);
   
-  // Check if we have saved credentials
-  if (hasCredentials()) {
-    String ssid = getSavedSSID();
-    String password = g_prefs->getString(KEY_WIFI_PASS, "");
-    
-    Serial.printf("[WiFi] Found saved credentials for: %s\n", ssid.c_str());
-    
-    // Try to connect automatically
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid.c_str(), password.c_str());
-    g_state = WIFI_STA_CONNECTING;
-    g_lastConnectionAttempt = millis();
-  } else {
-    Serial.println("[WiFi] No saved credentials, starting AP mode");
-    startAP();
-  }
+  // Simple mode: always start AP for reliability
+  Serial.println("[WiFi] Starting simple AP mode");
+  startAP();
 }
 
 void service() {
+  // Simple service loop - no DNS server processing
+  
   switch (g_state) {
     case WIFI_STA_CONNECTING:
       if (WiFi.status() == WL_CONNECTED) {
         g_state = WIFI_STA_CONNECTED;
-        Serial.printf("[WiFi] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+        IPAddress ip = WiFi.localIP();
+        Serial.printf("[WiFi] Connected! IP: %s\n", ip.toString().c_str());
+        
+        // Set flag for audio signal
+        g_wifiJustConnected = true;
       } else if (millis() - g_lastConnectionAttempt > g_connectionTimeout) {
         g_state = WIFI_STA_FAILED;
         Serial.println("[WiFi] Connection failed, starting AP mode");
@@ -94,20 +88,40 @@ String getAPSSID() {
   return g_apSSID;
 }
 
+bool checkWiFiJustConnected() {
+  if (g_wifiJustConnected) {
+    g_wifiJustConnected = false; // Reset flag
+    return true;
+  }
+  return false;
+}
+
 void startAP() {
   WiFi.mode(WIFI_AP);
+  // Keep radio fully awake for reliability in AP mode
+  WiFi.setSleep(false);
+  // Use strong transmit power for better range/stability
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
   
-  // Start Access Point
-  bool success = WiFi.softAP(g_apSSID.c_str(), "TLTB1234"); // Default password
+  // Simple AP configuration
+  WiFi.softAPConfig(
+    IPAddress(192, 168, 4, 1),    // AP IP
+    IPAddress(192, 168, 4, 1),    // Gateway (ourselves)
+    IPAddress(255, 255, 255, 0)   // Subnet mask
+  );
+  
+  // Start Access Point with WPA2 password for better client compatibility
+  // Channel 1, not hidden, max 4 clients
+  const char* ap_password = "TLTB1234"; // 8+ chars as required by WPA2
+  bool success = WiFi.softAP(g_apSSID.c_str(), ap_password, 1, 0, 4);
   
   if (success) {
     g_state = WIFI_AP_MODE;
     g_apStarted = true;
     
-    Serial.printf("[WiFi] AP started: %s\n", g_apSSID.c_str());
+    Serial.printf("[WiFi] AP started: %s (password: %s)\n", g_apSSID.c_str(), ap_password);
     Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
-    Serial.println("[WiFi] Default password: TLTB1234");
-    Serial.println("[WiFi] Connect and go to http://192.168.4.1");
+    Serial.println("[WiFi] Connect to WiFi, then go to: http://192.168.4.1");
   } else {
     Serial.println("[WiFi] Failed to start AP");
     g_state = WIFI_DISABLED;
