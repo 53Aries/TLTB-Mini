@@ -99,7 +99,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   
-  Serial.println("\n=== TLTB Mini - ESP32-C3 ===");
+  Serial.println("\n=== TLTB Mini - ESP32-S3 ===");
   Serial.println("Initializing...");
   
   // Initialize status LED

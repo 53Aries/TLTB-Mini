@@ -1,6 +1,41 @@
-# TLTB Mini - Wiring Diagram
+# TLTB Mini - Wiring Diagram (ESP32-S3)
 
-## ESP32-C3 Connections
+## ESP32-S3-DevKitC-1 Pin Assignments
+
+### GPIO Assignments
+- **RF Data**: GPIO21 → SYN480R data output
+- **Rotary Switch**: GPIO4,5,6,7,15,16,17,18 → 8 positions
+- **Relays**: GPIO8-14 → 7 relay channels
+- **Buzzer**: GPIO35 → Audio feedback
+- **Status LED**: GPIO2 → Visual indication
+- **I2C**: GPIO47(SDA), GPIO48(SCL) → Future expansion
+
+### Detailed Pin Mapping
+
+```
+Function          GPIO    Description
+-----------------------------------------
+RF_DATA           21      SYN480R data input
+ROT_P1            4       All Off position
+ROT_P2            5       RF Enable position  
+ROT_P3            6       Left position
+ROT_P4            7       Right position
+ROT_P5            15      Brake position
+ROT_P6            16      Tail position
+ROT_P7            17      Marker position
+ROT_P8            18      Aux position
+RELAY_LEFT        8       Left turn relay
+RELAY_RIGHT       9       Right turn relay
+RELAY_BRAKE       10      Brake relay
+RELAY_TAIL        11      Tail relay
+RELAY_MARKER      12      Marker relay
+RELAY_AUX         13      Auxiliary relay
+RELAY_ENABLE      14      12V enable relay
+BUZZER            35      Piezo buzzer
+STATUS_LED        2       Status indication
+I2C_SDA           47      Future expansion
+I2C_SCL           48      Future expansion
+```
 
 ```
 ESP32-C3-DevKitM-1
