@@ -29,7 +29,6 @@ void begin(Preferences* prefs) {
   delay(100);
   
   // Simple mode: always start AP for reliability
-  Serial.println("[WiFi] Starting simple AP mode");
   startAP();
 }
 
@@ -40,14 +39,10 @@ void service() {
     case WIFI_STA_CONNECTING:
       if (WiFi.status() == WL_CONNECTED) {
         g_state = WIFI_STA_CONNECTED;
-        IPAddress ip = WiFi.localIP();
-        Serial.printf("[WiFi] Connected! IP: %s\n", ip.toString().c_str());
-        
         // Set flag for audio signal
         g_wifiJustConnected = true;
       } else if (millis() - g_lastConnectionAttempt > g_connectionTimeout) {
         g_state = WIFI_STA_FAILED;
-        Serial.println("[WiFi] Connection failed, starting AP mode");
         startAP();
       }
       break;
@@ -118,12 +113,7 @@ void startAP() {
   if (success) {
     g_state = WIFI_AP_MODE;
     g_apStarted = true;
-    
-    Serial.printf("[WiFi] AP started: %s (password: %s)\n", g_apSSID.c_str(), ap_password);
-    Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
-    Serial.println("[WiFi] Connect to WiFi, then go to: http://192.168.4.1");
   } else {
-    Serial.println("[WiFi] Failed to start AP");
     g_state = WIFI_DISABLED;
   }
 }

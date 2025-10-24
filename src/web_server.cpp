@@ -293,7 +293,6 @@ namespace {
 
   void handleNotFound(AsyncWebServerRequest *request) {
     String path = request->url();
-    Serial.printf("[WebServer] 404 Request: %s\n", path.c_str());
     request->send(404, "text/plain", "Not found - try http://192.168.4.1");
   }
 
@@ -425,35 +424,7 @@ void begin(Preferences* prefs) {
   // Root page
   g_server->on("/", HTTP_GET, handleIndex);
   
-  // Simple connectivity test
-  g_server->on("/ping", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", "pong");
-  });
-  
-  // Device discovery endpoint
-  g_server->on("/discover", HTTP_GET, [](AsyncWebServerRequest *request){
-    JSONVar response;
-    response["device"] = "TLTB-Mini";
-    response["ip"] = WiFi.localIP().toString();
-    response["hostname"] = "tltb-mini.local";
-    response["mac"] = WiFi.macAddress();
-    response["ap_ssid"] = WiFiManager::getAPSSID();
-    request->send(200, "application/json", JSON.stringify(response));
-  });
-  
-  // Diagnostic page
-  g_server->on("/info", HTTP_GET, [](AsyncWebServerRequest *request){
-    String html = "<html><body><h1>TLTB Mini Diagnostics</h1>";
-    html += "<p><strong>WiFi Mode:</strong> " + String(WiFi.getMode()) + "</p>";
-    html += "<p><strong>WiFi Status:</strong> " + String(WiFi.status()) + "</p>";
-    html += "<p><strong>AP IP:</strong> " + WiFi.softAPIP().toString() + "</p>";
-    html += "<p><strong>STA IP:</strong> " + WiFi.localIP().toString() + "</p>";
-    html += "<p><strong>MAC:</strong> " + WiFi.macAddress() + "</p>";
-    html += "<p><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()) + "</p>";
-    html += "<p><a href='/'>Back to Main</a></p>";
-    html += "</body></html>";
-    request->send(200, "text/html", html);
-  });
+    // Removed ping, discover, and diagnostics endpoints per simplification
   
   // API endpoints
   g_server->on("/api/status", HTTP_GET, handleAPIStatus);

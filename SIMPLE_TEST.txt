@@ -17,9 +17,8 @@ TLTB Mini - Simple WiFi AP Test Instructions
    - You should see the TLTB Mini interface
 
 5. IF IT DOESN'T WORK:
-   - Check serial output for errors
-   - Try going to: http://192.168.4.1/info for diagnostics
    - Make sure you're connected to the TLTB-Mini WiFi network
+   - Power-cycle the device and try again at http://192.168.4.1
 
 SIMPLIFIED CHANGES MADE:
 - Removed all captive portal complexity

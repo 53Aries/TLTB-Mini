@@ -120,7 +120,6 @@ void setup() {
   delay(1000);
   
   Serial.println("\n=== TLTB Mini - ESP32-S3 ===");
-  Serial.println("Initializing...");
   
   // Initialize status LED
   pinMode(PIN_STATUS_LED, OUTPUT);
@@ -162,34 +161,12 @@ void setup() {
   delay(200);
   Buzzer::beep();
   
-  Serial.println("=== TLTB Mini Ready ===");
-  Serial.println("Control methods available:");
-  Serial.println("1. WiFi Web Interface - Connect to TLTB-Mini-XXXXXX");
-  Serial.println("2. Manual Control - Use rotary switch");
-  Serial.println("");
-  Serial.println("For Android devices:");
-  Serial.println("- Connect to WiFi normally");  
-  Serial.println("- Manually navigate to http://192.168.4.1");
-  Serial.println("- Ignore 'no internet' warnings");
+  Serial.println("=== System Ready ===");
   
   // Wait a moment for WiFi to stabilize
   delay(2000);
   
-  Serial.printf("WiFi Status: %s\n", [](){ 
-    switch(WiFiManager::getState()) {
-      case WiFiManager::WIFI_AP_MODE: return "AP Mode";
-      case WiFiManager::WIFI_STA_CONNECTED: return "Connected";
-      case WiFiManager::WIFI_STA_CONNECTING: return "Connecting";
-      default: return "Unknown";
-    }
-  }());
-  
-  if (WiFiManager::getState() == WiFiManager::WIFI_AP_MODE) {
-    Serial.printf("WiFi AP: %s (password: TLTB1234)\n", WiFiManager::getAPSSID().c_str());
-    Serial.printf("Web interface: http://192.168.4.1\n");
-  } else {
-    Serial.printf("Web interface: http://%s\n", WiFiManager::getIPAddress().c_str());
-  }
+  // WiFi details omitted intentionally
   
   // Show initial status
   RotaryMode initialMode = RotarySwitch::readPosition();
@@ -237,15 +214,7 @@ void loop() {
                   RF::getActiveRelay(),
                   relayIsOn(R_ENABLE) ? "ON" : "OFF");
                   
-    // Print WiFi connection info
-    WiFiManager::WiFiState wifiState = WiFiManager::getState();
-    if (wifiState == WiFiManager::WIFI_STA_CONNECTED) {
-      Serial.printf("[WiFi] Connected - IP: %s\n", WiFi.localIP().toString().c_str());
-      Serial.println("[WiFi] Access via: http://tltb-mini.local OR http://" + WiFi.localIP().toString());
-    } else if (wifiState == WiFiManager::WIFI_AP_MODE) {
-      Serial.printf("[WiFi] AP Mode - Connect to: %s\n", WiFiManager::getAPSSID().c_str());
-      Serial.println("[WiFi] Then go to: http://192.168.4.1");
-    }
+    // WiFi diagnostics omitted
   }
   
   delay(1); // keep responsive
