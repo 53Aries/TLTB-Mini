@@ -111,9 +111,16 @@ void setup() {
   // Initialize preferences
   prefs.begin("tltb_mini", false);
   
-  // Initialize WiFi and Web Server
+  // Initialize WiFi first
   WiFiManager::begin(&prefs);
+  
+  // Initialize Web Server
   WebServer::begin(&prefs);
+  
+  // Give WiFi time to initialize
+  delay(1000);
+  
+  // Start web server
   WebServer::start();
   
   // Initialize modules
@@ -139,8 +146,25 @@ void setup() {
   
   Serial.println("=== System Ready ===");
   Serial.println("Type HELP for available commands");
-  Serial.printf("WiFi AP: %s (password: TLTB1234)\n", WiFiManager::getAPSSID().c_str());
-  Serial.printf("Web interface: http://%s\n", WiFiManager::getIPAddress().c_str());
+  
+  // Wait a moment for WiFi to stabilize
+  delay(2000);
+  
+  Serial.printf("WiFi Status: %s\n", [](){ 
+    switch(WiFiManager::getState()) {
+      case WiFiManager::WIFI_AP_MODE: return "AP Mode";
+      case WiFiManager::WIFI_STA_CONNECTED: return "Connected";
+      case WiFiManager::WIFI_STA_CONNECTING: return "Connecting";
+      default: return "Unknown";
+    }
+  }());
+  
+  if (WiFiManager::getState() == WiFiManager::WIFI_AP_MODE) {
+    Serial.printf("WiFi AP: %s (password: TLTB1234)\n", WiFiManager::getAPSSID().c_str());
+    Serial.printf("Web interface: http://192.168.4.1\n");
+  } else {
+    Serial.printf("Web interface: http://%s\n", WiFiManager::getIPAddress().c_str());
+  }
   
   // Show initial status
   RotaryMode initialMode = RotarySwitch::readPosition();

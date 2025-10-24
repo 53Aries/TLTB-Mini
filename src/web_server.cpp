@@ -342,6 +342,25 @@ void begin(Preferences* prefs) {
   // Root page
   g_server->on("/", HTTP_GET, handleIndex);
   
+  // Simple connectivity test
+  g_server->on("/ping", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", "pong");
+  });
+  
+  // Diagnostic page
+  g_server->on("/info", HTTP_GET, [](AsyncWebServerRequest *request){
+    String html = "<html><body><h1>TLTB Mini Diagnostics</h1>";
+    html += "<p><strong>WiFi Mode:</strong> " + String(WiFi.getMode()) + "</p>";
+    html += "<p><strong>WiFi Status:</strong> " + String(WiFi.status()) + "</p>";
+    html += "<p><strong>AP IP:</strong> " + WiFi.softAPIP().toString() + "</p>";
+    html += "<p><strong>STA IP:</strong> " + WiFi.localIP().toString() + "</p>";
+    html += "<p><strong>MAC:</strong> " + WiFi.macAddress() + "</p>";
+    html += "<p><strong>Free Heap:</strong> " + String(ESP.getFreeHeap()) + "</p>";
+    html += "<p><a href='/'>Back to Main</a></p>";
+    html += "</body></html>";
+    request->send(200, "text/html", html);
+  });
+  
   // API endpoints
   g_server->on("/api/status", HTTP_GET, handleAPIStatus);
   g_server->on("/api/wifi/clear", HTTP_POST, handleWiFiClear);
@@ -367,6 +386,10 @@ void start() {
     g_server->begin();
     g_serverRunning = true;
     Serial.println("[WebServer] Started on port 80");
+    Serial.printf("[WebServer] Access at: http://%s\n", WiFi.localIP().toString().c_str());
+    if (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA) {
+      Serial.printf("[WebServer] AP mode access: http://%s\n", WiFi.softAPIP().toString().c_str());
+    }
   }
 }
 

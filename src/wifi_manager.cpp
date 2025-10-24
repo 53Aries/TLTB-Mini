@@ -1,5 +1,4 @@
 #include "wifi_manager.hpp"
-#include <DNSServer.h>
 
 namespace {
   Preferences* g_prefs = nullptr;
@@ -8,7 +7,6 @@ namespace {
   uint32_t g_connectionTimeout = 30000; // 30 seconds
   String g_deviceName = "TLTB-Mini";
   String g_apSSID = "";
-  DNSServer g_dnsServer;
   bool g_apStarted = false;
   
   // Keys for preferences
@@ -69,9 +67,7 @@ void service() {
       break;
       
     case WIFI_AP_MODE:
-      if (g_apStarted) {
-        g_dnsServer.processNextRequest();
-      }
+      // AP mode is running, no additional processing needed
       break;
       
     default:
@@ -106,14 +102,12 @@ void startAP() {
   
   if (success) {
     g_state = WIFI_AP_MODE;
-    
-    // Start DNS server for captive portal
-    g_dnsServer.start(53, "*", WiFi.softAPIP());
     g_apStarted = true;
     
     Serial.printf("[WiFi] AP started: %s\n", g_apSSID.c_str());
     Serial.printf("[WiFi] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
     Serial.println("[WiFi] Default password: TLTB1234");
+    Serial.println("[WiFi] Connect and go to http://192.168.4.1");
   } else {
     Serial.println("[WiFi] Failed to start AP");
     g_state = WIFI_DISABLED;
