@@ -221,7 +221,7 @@ namespace {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
+        if (data.success) {
                     // Start polling for learning status
                     startLearningStatusPoll(channel);
                 } else {
@@ -243,10 +243,10 @@ namespace {
                         
                         if (!learning.active) {
                             clearInterval(pollInterval);
-                            if (learning.success) {
+              if (learning.success) {
                                 alert('Successfully learned RF code for ' + channelNames[channel]);
-                            } else if (learning.timeout) {
-                                alert('Learning timeout - no signal received within 30 seconds');
+              } else if (learning.timeout) {
+                alert('Learning timeout - no signal received within 10 seconds');
                             } else {
                                 alert('Learning failed');
                             }
@@ -388,7 +388,7 @@ namespace {
         JSONVar response;
         response["success"] = success;
         response["message"] = success ? 
-          "Learning started for channel " + String(channel) + ". Press remote button within 30 seconds." :
+          "Learning started for channel " + String(channel) + ". Press remote button within 10 seconds." :
           "Failed to start learning for channel " + String(channel);
         
         request->send(200, "application/json", JSON.stringify(response));

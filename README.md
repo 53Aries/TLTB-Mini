@@ -9,7 +9,7 @@ A simplified version of the TLTB (Trailer Light Test Box) designed for ESP32-S3 
 - 8-Position Rotary Switch: Manual control modes plus RF enable
 - Built-in WiFi Access Point (AP): simple, reliable hotspot for configuration
 - Web Interface at http://192.168.4.1: RF learning and relay status
-- Learning Mode: Learn up to 6 RF remote buttons with 30-second timeout
+- Learning Mode: Learn up to 6 RF remote buttons with 10-second timeout
 - Audio Feedback (buzzer) and Status LED
 
 ## Hardware Requirements

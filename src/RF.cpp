@@ -364,11 +364,11 @@ bool learn(int relayIndex) {
   if (relayIndex < 0) relayIndex = 0;
   if (relayIndex > 5) relayIndex = 5;
   
-  uint32_t deadline = millis() + 30000; // 30 second timeout
+  uint32_t deadline = millis() + 10000; // 10 second timeout
   uint32_t lastSig = 0, lastSum = 0, lastAt = 0;
   uint16_t lastLen = 0;
 
-  Serial.printf("[RF] Learning mode for relay %d. Press remote button (30s timeout)...\n", relayIndex);
+  Serial.printf("[RF] Learning mode for relay %d. Press remote button (10s timeout)...\n", relayIndex);
 
   while (millis() < deadline) {
     uint32_t sig, sum; 
@@ -424,7 +424,7 @@ bool startLearning(int relayIndex) {
   g_learning.active = true;
   g_learning.channel = relayIndex;
   g_learning.startTime = millis();
-  g_learning.deadline = g_learning.startTime + 30000; // 30 second timeout
+  g_learning.deadline = g_learning.startTime + 10000; // 10 second timeout
   g_learning.lastSig = 0;
   g_learning.lastSum = 0;
   g_learning.lastLen = 0;
@@ -432,7 +432,7 @@ bool startLearning(int relayIndex) {
   g_learning.success = false;
   g_learning.timeout = false;
   
-  Serial.printf("[RF] Started async learning for relay %d (30s timeout)\n", relayIndex);
+  Serial.printf("[RF] Started async learning for relay %d (10s timeout)\n", relayIndex);
   return true;
 }
 
@@ -449,8 +449,8 @@ LearningStatus getLearningStatus() {
   status.timeout = g_learning.timeout;
   
   if (g_learning.active) {
-    uint32_t elapsed = millis() - g_learning.startTime;
-    status.timeRemaining = (elapsed < 30000) ? (30000 - elapsed) : 0;
+  uint32_t elapsed = millis() - g_learning.startTime;
+  status.timeRemaining = (elapsed < 10000) ? (10000 - elapsed) : 0;
   } else {
     status.timeRemaining = 0;
   }

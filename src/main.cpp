@@ -44,7 +44,7 @@ void handleSerialCommands() {
     Serial.printf("Starting RF learning for channel %d (relay %s)...\n", 
                   channel, relayName((RelayIndex)channel));
     if (RF::startLearning(channel)) {
-      Serial.println("Learning started. Press remote button within 30 seconds.");
+      Serial.println("Learning started. Press remote button within 10 seconds.");
     } else {
       Serial.println("Failed to start learning - another learning session may be active.");
     }
